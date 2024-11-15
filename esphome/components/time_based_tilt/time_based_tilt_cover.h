@@ -22,10 +22,22 @@ class TimeBasedTiltCover : public cover::Cover, public Component {
   void set_tilt_open_duration(uint32_t tilt_open_duration) { this->tilt_open_duration_ = tilt_open_duration; }
   void set_tilt_close_duration(uint32_t tilt_close_duration) { this->tilt_close_duration_ = tilt_close_duration; }
   void set_interlock_wait_time(uint32_t interlock_wait_time) { this->interlock_wait_time_ = interlock_wait_time; }
-  void set_recalibration_time(uint32_t recalibration_time) { this->recalibration_time_ = recalibration_time; }
+  void set_recalibration_open_time(uint32_t recalibration_time) { this->recalibration_open_time_ = recalibration_time; }
+  void set_recalibration_close_time(uint32_t recalibration_time) {
+    this->recalibration_close_time_ = recalibration_time;
+  }
   void set_inertia_open_time(uint32_t inertia_time) { this->inertia_open_time_ = inertia_time; }
   void set_inertia_close_time(uint32_t inertia_time) { this->inertia_close_time_ = inertia_time; }
+  void set_actuator_activation_open_time(uint32_t activation_time) {
+    this->actuator_activation_open_time_ = activation_time;
+  }
+  void set_actuator_activation_close_time(uint32_t activation_time) {
+    this->actuator_activation_close_time_ = activation_time;
+  }
   cover::CoverOperation compute_direction(float target, float current) {
+    if (target == current) {
+      return cover::COVER_OPERATION_IDLE;
+    }
     return target < current ? cover::COVER_OPERATION_CLOSING : cover::COVER_OPERATION_OPENING;
   };
   float round_position(float pos) { return round(100 * pos) / 100; };
@@ -36,6 +48,7 @@ class TimeBasedTiltCover : public cover::Cover, public Component {
   void control(const cover::CoverCall &call) override;
   bool is_at_target_position_() const;
   bool is_at_target_tilt_() const;
+  bool is_at_extreme_position_() const;
 
   Trigger<> *open_trigger_{new Trigger<>()};
   Trigger<> *close_trigger_{new Trigger<>()};
@@ -48,9 +61,15 @@ class TimeBasedTiltCover : public cover::Cover, public Component {
   uint32_t tilt_open_duration_;
 
   uint32_t interlock_wait_time_;
-  uint32_t recalibration_time_;
+  uint32_t recalibration_open_time_;
+  uint32_t recalibration_close_time_;
   uint32_t inertia_open_time_;
   uint32_t inertia_close_time_;
+  uint32_t actuator_activation_open_time_;
+  uint32_t actuator_activation_close_time_;
+
+  uint32_t current_recalibration_time_;
+  uint32_t current_actuator_activation_time_;
 
   const static float TARGET_NONE;
   enum State : uint8_t { STATE_IDLE, STATE_MOVING, STATE_STOPPING, STATE_CALIBRATING };
