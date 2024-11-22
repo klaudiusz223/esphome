@@ -79,6 +79,8 @@ void TimeBasedTiltCover::loop() {
   if (this->fsm_state_ == STATE_CALIBRATING) {
     if (now - this->last_recompute_time_ >= this->current_recalibration_time_) {
       this->fsm_state_ = STATE_STOPPING;
+      this->target_position_ = TARGET_NONE;
+      this->target_tilt_ = TARGET_NONE;
       ESP_LOGD(TAG, "Transition to the stopping state");
     }
     return;
@@ -110,19 +112,23 @@ void TimeBasedTiltCover::loop() {
       this->current_operation = this->compute_direction(this->target_position_, this->position);
       if (this->current_operation == COVER_OPERATION_IDLE) {  // Already at the target position.
         this->target_position_ = TARGET_NONE;
-        if (this->target_tilt_ != TARGET_NONE) {
-          this->current_operation = this->compute_direction(
-              this->target_tilt_, this->tilt);  // Calculate the direction based on the target tilt.
+        if (this->target_tilt_ != TARGET_NONE) {  // Calculate the direction based on the target tilt.
+          this->current_operation = this->compute_direction(this->target_tilt_, this->tilt);
         }
       }
-    } else {
-      this->current_operation =
-          this->compute_direction(this->target_tilt_, this->tilt);  // Calculate the direction based on the target tilt.
+    } else {  // Calculate the direction based on the target tilt.
+      this->current_operation = this->compute_direction(this->target_tilt_, this->tilt);
     }
 
     if (this->current_operation == COVER_OPERATION_IDLE) {  // Already at the target tilt and target position.
-      this->target_tilt_ = TARGET_NONE;
-      return;
+      if (this->is_at_extreme_position_()) {  // But if we are at extreme position we can run recacalibration
+        this->current_operation = this->position == COVER_CLOSED ? COVER_OPERATION_CLOSING : COVER_OPERATION_OPENING;
+        this->target_position_ = this->position == COVER_CLOSED ? COVER_CLOSED : COVER_OPEN;
+      } else {
+        this->target_tilt_ = TARGET_NONE;
+        this->target_position_ = TARGET_NONE;
+        return;
+      }
     }
 
     // Interlocking support.
